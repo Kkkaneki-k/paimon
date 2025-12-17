@@ -28,6 +28,7 @@ import org.apache.paimon.spark.util.{OptionUtils, SplitUtils}
 import org.apache.paimon.table.{SpecialFields, Table}
 import org.apache.paimon.table.source.{ReadBuilder, Split}
 import org.apache.paimon.types.RowType
+import org.apache.paimon.utils.Range
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.metric.{CustomMetric, CustomTaskMetric}
@@ -47,6 +48,7 @@ trait BaseScan extends Scan with SupportsReportStatistics with Logging {
   // Push down
   def pushedPartitionFilters: Seq[PartitionPredicate]
   def pushedDataFilters: Seq[Predicate]
+  def pushedRowIds: Seq[Range] = null
   def pushedLimit: Option[Int] = None
   def pushedTopN: Option[TopN] = None
 
@@ -101,6 +103,10 @@ trait BaseScan extends Scan with SupportsReportStatistics with Logging {
     }
     if (pushedDataFilters.nonEmpty) {
       _readBuilder.withFilter(pushedDataFilters.asJava)
+    }
+    // Filter data by rowIds. If rowIds is empty, it means no data will be read.
+    if (pushedRowIds != null) {
+      _readBuilder.withRowRanges(pushedRowIds.asJava)
     }
     pushedLimit.foreach(_readBuilder.withLimit)
     pushedTopN.foreach(_readBuilder.withTopN)

@@ -16,15 +16,6 @@
  * limitations under the License.
  */
 
-package org.apache.paimon.spark
+package org.apache.paimon.spark.sql
 
-import org.apache.paimon.table.InnerTable
-
-import org.apache.spark.sql.connector.read.Scan
-
-class PaimonScanBuilder(val table: InnerTable) extends PaimonBaseScanBuilder {
-
-  override def build(): Scan = {
-    PaimonScan(table, requiredSchema, pushedPartitionFilters, pushedDataFilters, pushedRowIds)
-  }
-}
+class RowIdPushDownTest extends RowIdPushDownTestBase {}

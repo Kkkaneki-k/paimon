@@ -18,17 +18,20 @@
 
 package org.apache.paimon.spark
 
+import org.apache.paimon.CoreOptions
 import org.apache.paimon.partition.PartitionPredicate
 import org.apache.paimon.partition.PartitionPredicate.splitPartitionPredicatesAndDataPredicates
-import org.apache.paimon.predicate.{PartitionPredicateVisitor, Predicate}
-import org.apache.paimon.table.Table
-import org.apache.paimon.types.RowType
+import org.apache.paimon.predicate.{PartitionPredicateVisitor, Predicate, RowIdPredicateVisitor}
+import org.apache.paimon.table.{InnerTable, Table}
+import org.apache.paimon.table.SpecialFields.ROW_ID
+import org.apache.paimon.types.{DataField, DataTypes, RowType}
+import org.apache.paimon.utils.Range
 
 import org.apache.spark.sql.connector.read.{SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
-import java.util.{List => JList}
+import java.util.{Collections, List => JList}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -41,12 +44,14 @@ abstract class PaimonBaseScanBuilder
   val table: Table
   val partitionKeys: JList[String] = table.partitionKeys()
   val rowType: RowType = table.rowType()
+  val coreOptions: CoreOptions = CoreOptions.fromMap(table.options())
 
   private var pushedSparkFilters = Array.empty[Filter]
   protected var hasPostScanPredicates = false
 
   protected var pushedPartitionFilters: Array[PartitionPredicate] = Array.empty
   protected var pushedDataFilters: Array[Predicate] = Array.empty
+  protected var pushedRowIds: Array[Range] = null
 
   protected var requiredSchema: StructType = SparkTypeUtils.fromPaimonRowType(table.rowType())
 
@@ -63,6 +68,7 @@ abstract class PaimonBaseScanBuilder
     val pushable = mutable.ArrayBuffer.empty[Filter]
     val pushablePartitionDataFilters = mutable.ArrayBuffer.empty[Predicate]
     val pushableDataFilters = mutable.ArrayBuffer.empty[Predicate]
+    var pushableRowIds: JList[Range] = null
     val postScan = mutable.ArrayBuffer.empty[Filter]
 
     val converter = new SparkFilterConverter(rowType)
@@ -71,7 +77,26 @@ abstract class PaimonBaseScanBuilder
       filter =>
         val predicate = converter.convertIgnoreFailure(filter)
         if (predicate == null) {
-          postScan.append(filter)
+          val rowTypeWithRowId = new RowType(
+            false,
+            Collections.singletonList(new DataField(-1, ROW_ID.name(), DataTypes.BIGINT())))
+          val converterWithRowId = new SparkFilterConverter(rowTypeWithRowId)
+          val newPredicate = converterWithRowId.convertIgnoreFailure(filter)
+          val rowIdVisitor = new RowIdPredicateVisitor
+
+          if (
+            newPredicate != null && newPredicate.visit(rowIdVisitor) != null
+            && table.isInstanceOf[InnerTable] && coreOptions.rowIdPushDownEnabled()
+          ) {
+            pushable.append(filter)
+            if (pushableRowIds == null) {
+              pushableRowIds = newPredicate.visit(rowIdVisitor)
+            } else {
+              pushableRowIds = Range.and(pushableRowIds, newPredicate.visit(rowIdVisitor))
+            }
+          } else {
+            postScan.append(filter)
+          }
         } else {
           pushable.append(filter)
           if (predicate.visit(partitionPredicateVisitor)) {
@@ -97,6 +122,9 @@ abstract class PaimonBaseScanBuilder
     }
     if (pushableDataFilters.nonEmpty) {
       this.pushedDataFilters = pushableDataFilters.toArray
+    }
+    if (pushableRowIds != null) {
+      this.pushedRowIds = pushableRowIds.asScala.toArray
     }
     if (postScan.nonEmpty) {
       this.hasPostScanPredicates = true

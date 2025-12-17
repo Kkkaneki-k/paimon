@@ -26,6 +26,7 @@ import org.apache.paimon.spark.scan.BaseScan
 import org.apache.paimon.spark.schema.PaimonMetadataColumn.FILE_PATH_COLUMN
 import org.apache.paimon.table.FileStoreTable
 import org.apache.paimon.table.source.{DataSplit, Split}
+import org.apache.paimon.utils.Range
 
 import org.apache.spark.sql.PaimonUtils
 import org.apache.spark.sql.connector.expressions.{Expressions, NamedReference}
@@ -43,7 +44,8 @@ case class PaimonCopyOnWriteScan(
     table: FileStoreTable,
     requiredSchema: StructType,
     pushedPartitionFilters: Seq[PartitionPredicate],
-    pushedDataFilters: Seq[Predicate])
+    pushedDataFilters: Seq[Predicate],
+    override val pushedRowIds: Seq[Range])
   extends BaseScan
   with SupportsRuntimeV2Filtering {
 

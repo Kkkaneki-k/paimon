@@ -21,6 +21,7 @@ package org.apache.paimon.spark
 import org.apache.paimon.partition.PartitionPredicate
 import org.apache.paimon.predicate.{Predicate, TopN}
 import org.apache.paimon.table.InnerTable
+import org.apache.paimon.utils.Range
 
 import org.apache.spark.sql.PaimonUtils.fieldReference
 import org.apache.spark.sql.connector.expressions.NamedReference
@@ -35,6 +36,7 @@ case class PaimonScan(
     requiredSchema: StructType,
     pushedPartitionFilters: Seq[PartitionPredicate],
     pushedDataFilters: Seq[Predicate],
+    override val pushedRowIds: Seq[Range],
     override val pushedLimit: Option[Int] = None,
     override val pushedTopN: Option[TopN] = None,
     bucketedScanDisabled: Boolean = true)
