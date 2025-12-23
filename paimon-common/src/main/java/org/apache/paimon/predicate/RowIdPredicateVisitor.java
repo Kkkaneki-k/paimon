@@ -68,7 +68,7 @@ public class RowIdPredicateVisitor implements PredicateVisitor<List<Range>> {
             for (Predicate child : predicate.children()) {
                 List<Range> childList = child.visit(this);
                 if (childList == null) {
-                    return null;
+                    continue;
                 }
 
                 if (rowIds == null) {

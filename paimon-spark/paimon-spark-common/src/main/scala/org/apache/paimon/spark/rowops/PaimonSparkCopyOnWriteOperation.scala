@@ -43,12 +43,7 @@ class PaimonSparkCopyOnWriteOperation(table: FileStoreTable, info: RowLevelOpera
 
       override def build(): Scan = {
         val scan =
-          PaimonCopyOnWriteScan(
-            table,
-            requiredSchema,
-            pushedPartitionFilters,
-            pushedDataFilters,
-            pushedRowIds)
+          PaimonCopyOnWriteScan(table, requiredSchema, pushedPartitionFilters, pushedDataFilters)
         PaimonSparkCopyOnWriteOperation.this.copyOnWriteScan = Option(scan)
         scan
       }

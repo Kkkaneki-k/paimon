@@ -133,7 +133,6 @@ class PaimonScanBuilder(val table: InnerTable)
           requiredSchema,
           pushedPartitionFilters,
           pushedDataFilters,
-          pushedRowIds,
           pushedLimit,
           pushedTopN)
     }

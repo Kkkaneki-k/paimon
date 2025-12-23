@@ -19,9 +19,12 @@
 package org.apache.paimon.spark.sql
 
 import org.apache.paimon.spark.PaimonSparkTestBase
+import org.apache.paimon.table.source.ReadBuilderImpl
 import org.apache.paimon.utils.Range
 
 import org.apache.spark.sql.Row
+
+import scala.collection.JavaConverters._
 
 class RowIdPushDownTestBase extends PaimonSparkTestBase {
 
@@ -33,19 +36,28 @@ class RowIdPushDownTestBase extends PaimonSparkTestBase {
 
       // 1.LeafPredicate
       assertResult(Seq(new Range(0L, 0L)))(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID = 0"),
         Seq(Row(1, 1, "1"))
       )
       assertResult(Seq(new Range(0L, 1L), new Range(3L, 3L)))(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID IN (0, 1, 3)").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID IN (0, 1, 3)").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID IN (0, 1, 3)"),
         Seq(Row(1, 1, "1"), Row(2, 2, "2"), Row(4, 4, "4"))
       )
       assertResult(Seq(new Range(4L, 5L)))(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID IN (4, 5)").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID IN (4, 5)").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID IN (4, 5)"),
         Seq()
@@ -53,19 +65,28 @@ class RowIdPushDownTestBase extends PaimonSparkTestBase {
 
       // 2.CompoundPredicate
       assertResult(Seq(new Range(0, 0)))(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (0, 1)").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (0, 1)").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (0, 1)"),
         Seq(Row(1, 1, "1"))
       )
       assertResult(Seq(new Range(0, 2)))(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 OR _ROW_ID IN (1, 2)").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 OR _ROW_ID IN (1, 2)").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID = 0 OR _ROW_ID IN (1, 2)"),
         Seq(Row(1, 1, "1"), Row(2, 2, "2"), Row(3, 3, "3"))
       )
       assertResult(Seq())(
-        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (1, 2)").pushedRowIds)
+        getPaimonScan("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (1, 2)").readBuilder
+          .asInstanceOf[ReadBuilderImpl]
+          .rowRanges
+          .asScala)
       checkAnswer(
         sql("SELECT * FROM t WHERE _ROW_ID = 0 AND _ROW_ID IN (1, 2)"),
         Seq()

@@ -23,7 +23,6 @@ import org.apache.paimon.predicate.Predicate
 import org.apache.paimon.spark.{PaimonBaseScanBuilder, PaimonBatch}
 import org.apache.paimon.table.{InnerTable, KnownSplitsTable}
 import org.apache.paimon.table.source.{DataSplit, Split}
-import org.apache.paimon.utils.Range
 
 import org.apache.spark.sql.connector.read.{Batch, Scan}
 import org.apache.spark.sql.types.StructType
@@ -36,8 +35,7 @@ class PaimonSplitScanBuilder(val table: KnownSplitsTable) extends PaimonBaseScan
       table.splits(),
       requiredSchema,
       pushedPartitionFilters,
-      pushedDataFilters,
-      pushedRowIds)
+      pushedDataFilters)
   }
 }
 
@@ -47,8 +45,7 @@ case class PaimonSplitScan(
     dataSplits: Array[DataSplit],
     requiredSchema: StructType,
     pushedPartitionFilters: Seq[PartitionPredicate],
-    pushedDataFilters: Seq[Predicate],
-    override val pushedRowIds: Seq[Range])
+    pushedDataFilters: Seq[Predicate])
   extends BaseScan {
 
   override def inputSplits: Array[Split] = dataSplits.asInstanceOf[Array[Split]]
